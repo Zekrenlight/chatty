@@ -1,0 +1,204 @@
+id = "chatty"
+name = "Chatty"
+version = "1.0.0"
+description = "Player heads beside chat names, timestamps, repeated messages stacked with a count, chat history kept per server and world (with clear buttons and /chatty clear), and a symbol picker by the chat box. Every part has its own switch."
+authors = ["Zekrenlight"]
+license = "MIT"
+api = "0.2"
+side = "client"
+capabilities = ["registries"]
+
+# Sunrise Mod SDK 9425651 (94256510f74, 19 Nov 2026, API 0.2, game 26.3). Mixins tool rev e59da909.
+# Besides the hook points it uses the game's own chat (its lines, sent history and options),
+# the player list and the chat screen, so the mod is pinned to this commit.
+[native]
+game = "26.3"
+sunrise = "94256510f74e6843754e0a93fd9e4da7e45b1056"
+mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
+
+# Everything that needs the game's types: composing lines, the history files, clearing, the
+# symbol picker.
+[[native.module]]
+id = "glue"
+file = "crates/sunrise-client/src/game.rs"
+name = "chatty_glue"
+source = "src/native/glue.rs"
+
+# A line joins the connection's chat (servers, and single player's own connection).
+[[native.mixin]]
+id = "signed_line"
+target = "sunrise_client::game::remote::Game<'_>::signed_chat_line"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/signed_line.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "content", ty = "&sunrise_client::text::Text", value = "&content" },
+  { name = "source", ty = "sunrise_client::chat::ChatSource", value = "source" },
+  { name = "signature", ty = "&Option<Signature>", value = "&signature" },
+  { name = "trust", ty = "&ChatTrust", value = "&trust" },
+]
+
+# A line joins the window's own chat, when there is no connection.
+[[native.mixin]]
+id = "local_line"
+target = "sunrise_client::game::chat::Game<'_>::local_chat_line"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/local_line.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "text", ty = "&sunrise_client::text::Text", value = "&text" },
+  { name = "indicator", ty = "Option<u32>", value = "indicator" },
+  { name = "source", ty = "sunrise_client::chat::ChatSource", value = "source" },
+]
+
+# The chat's options from PvP & HUD: with Chatty's repeats on the chat stacks them; with
+# Chatty's timestamps on it doesn't add its own.
+[[native.mixin]]
+id = "chat_options"
+target = "sunrise_client::game::pvp::Game<'_>::pvp_chat"
+kind = "RETURN"
+helper = "src/mixins/chat_options.rs"
+bindings = [
+  { name = "options", ty = "ChatOptions", value = "$value" },
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
+]
+
+# Once a client tick: joining and leaving, the player list's names, writing the history.
+[[native.mixin]]
+id = "tick"
+target = "sunrise_client::game::native_hooks::client_tick_post::Game<'_>::native_client_tick_post"
+kind = "HEAD"
+helper = "src/mixins/tick.rs"
+bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
+
+# A level is going (leaving, or another dimension): the history is written.
+[[native.mixin]]
+id = "level_unload"
+target = "sunrise_client::game::native_hooks::base::Game<'_>::native_client_level_unload"
+kind = "HEAD"
+helper = "src/mixins/level_unload.rs"
+bindings = [{ name = "game", ty = "&crate::game::Game<'_>", value = "&*self" }]
+
+# A setting changed on a mod's page: the clear buttons (click, then click again to clear).
+[[native.mixin]]
+id = "setting_changed"
+target = "sunrise_client::game::native_hooks::base::Game<'_>::native_setting_changed"
+kind = "HEAD"
+helper = "src/mixins/setting_changed.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "mod_id", ty = "&str", value = "mod_id" },
+  { name = "key", ty = "&str", value = "key" },
+]
+
+# `/chatty`, `/chatty clear`, `/chatty clear all`.
+[[native.mixin]]
+id = "command"
+target = "sunrise_client::game::native_hooks::base::Game<'_>::native_command"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/command.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "command", ty = "&str", value = "command" },
+  { name = "ran", ty = "&mut bool", value = "&mut *ran" },
+]
+
+# After the chat screen draws: the symbol button at the end of the chat box and its panel.
+[[native.mixin]]
+id = "draw_screen"
+target = "sunrise_client::game::chat::Game<'_>::draw_chat_screen"
+kind = "RETURN"
+helper = "src/mixins/draw_screen.rs"
+bindings = [
+  { name = "value", ty = "()", value = "$value" },
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut sunrise_client::hud::HudBatch", value = "&mut *batch" },
+]
+
+# A left click on the chat screen: the symbol picker takes the ones on it.
+[[native.mixin]]
+id = "click"
+target = "sunrise_client::game::chat::Game<'_>::chat_click"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/click.rs"
+bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
+
+# A key on the chat screen: Escape closes the open symbol picker before the chat.
+[[native.mixin]]
+id = "key"
+target = "sunrise_client::game::chat::Game<'_>::chat_key_code"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/key.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "key", ty = "winit::keyboard::KeyCode", value = "key" },
+]
+
+# The settings card (shared Sunrise dark card). Sunrise opens a mod's settings as its
+# Options page `NativeMod(index)` (SunnyMods' Settings button, Sunrise's Mods list and the
+# mod's own settings key all land there). These HEAD hooks act only on this mod's own page
+# and let every other page, and every other mod's card, through untouched.
+[[native.module]]
+id = "card"
+file = "crates/sunrise-client/src/game.rs"
+name = "chatty_card"
+source = "src/native/card.rs"
+
+[[native.mixin]]
+id = "card_draw"
+target = "sunrise_client::game::options::Game<'_>::draw_options"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/card_draw.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "batch", ty = "&mut sunrise_client::hud::HudBatch", value = "&mut *batch" },
+]
+
+[[native.mixin]]
+id = "card_mouse"
+target = "sunrise_client::game::options::Game<'_>::options_mouse"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/card_mouse.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "pressed", ty = "bool", value = "pressed" },
+  { name = "right", ty = "bool", value = "right" },
+]
+
+[[native.mixin]]
+id = "card_drag"
+target = "sunrise_client::game::options::Game<'_>::options_drag"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/card_drag.rs"
+bindings = [{ name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" }]
+
+[[native.mixin]]
+id = "card_scroll"
+target = "sunrise_client::game::options::Game<'_>::options_scroll"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/card_scroll.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "amount", ty = "f32", value = "amount" },
+]
+
+[[native.mixin]]
+id = "card_key"
+target = "sunrise_client::game::options::Game<'_>::options_key"
+kind = "HEAD"
+cancellable = true
+helper = "src/mixins/card_key.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "key", ty = "KeyCode", value = "key" },
+  { name = "text", ty = "Option<&str>", value = "text" },
+]
