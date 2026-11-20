@@ -5,6 +5,10 @@ Version 1.0.0 · Minecraft Java 26.3 · Sunrise API 0.2 · Mod SDK `9425651` · 
 
 Settings: Options > Mods... > Chatty > Settings. Every part has its own switch.
 
+<img width="653" height="78" alt="image" src="https://github.com/user-attachments/assets/67273672-2946-41ee-9449-d532b3ec0597" />
+<img width="258" height="242" alt="image" src="https://github.com/user-attachments/assets/54c0643e-ca93-4993-8911-837bfb412a9e" />
+
+
 ## Chat heads
 - Each player's face (with the hat layer) in front of their name on chat lines.
 - Works with the game's own `<Name> message` and with server formats: `Name: message`,
