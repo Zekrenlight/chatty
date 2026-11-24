@@ -6,8 +6,8 @@ fn chatty_signed_line(
     content: &sunrise_client::text::Text,
     source: sunrise_client::chat::ChatSource,
     signature: &Option<Signature>,
-    trust: &ChatTrust,
-) -> ::core::ops::ControlFlow<bool> {
+    tag: &Option<sunrise_client::chat::Tag>,
+) -> ::core::ops::ControlFlow<()> {
     if !game.ui.chat.shows(source) {
         return ::core::ops::ControlFlow::Continue(());
     }
@@ -20,10 +20,9 @@ fn chatty_signed_line(
     let focused = game.screen == Screen::Chat;
     let ticks = game.visual_ticks();
     if source == sunrise_client::chat::ChatSource::Player {
-        let tag = trust.tag();
         game.ui
             .chat
-            .add_signed(&game.gui.atlas, shown, *signature, tag, ticks, focused);
+            .add_signed(&game.gui.atlas, shown, *signature, tag.clone(), ticks, focused);
     } else {
         game.ui.chat.add(
             &game.gui.atlas,
@@ -42,5 +41,5 @@ fn chatty_signed_line(
             r.chat.remove(0);
         }
     }
-    ::core::ops::ControlFlow::Break(true)
+    ::core::ops::ControlFlow::Break(())
 }

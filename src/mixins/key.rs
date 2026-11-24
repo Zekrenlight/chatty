@@ -2,9 +2,9 @@
 fn chatty_key(
     game: &mut crate::game::Game<'_>,
     key: winit::keyboard::KeyCode,
-) -> ::core::ops::ControlFlow<()> {
+) -> ::core::ops::ControlFlow<bool> {
     if crate::game::chatty_glue::key(game, key) {
-        ::core::ops::ControlFlow::Break(())
+        ::core::ops::ControlFlow::Break(true)
     } else {
         ::core::ops::ControlFlow::Continue(())
     }

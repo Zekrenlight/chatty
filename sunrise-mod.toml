@@ -8,12 +8,12 @@ api = "0.2"
 side = "client"
 capabilities = ["registries"]
 
-# Sunrise Mod SDK 9425651 (94256510f74, 19 Nov 2026, API 0.2, game 26.3). Mixins tool rev e59da909.
+# Sunrise Mod SDK 3d34bbe (3d34bbe63d71, 24 Nov 2026, API 0.2, game 26.3). Mixins tool rev e59da909.
 # Besides the hook points it uses the game's own chat (its lines, sent history and options),
 # the player list and the chat screen, so the mod is pinned to this commit.
 [native]
 game = "26.3"
-sunrise = "94256510f74e6843754e0a93fd9e4da7e45b1056"
+sunrise = "3d34bbe63d71bb24c098c1e4021ef866be12fe2d"
 mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
 
 # Everything that needs the game's types: composing lines, the history files, clearing, the
@@ -27,7 +27,7 @@ source = "src/native/glue.rs"
 # A line joins the connection's chat (servers, and single player's own connection).
 [[native.mixin]]
 id = "signed_line"
-target = "sunrise_client::game::remote::Game<'_>::signed_chat_line"
+target = "sunrise_client::game::remote::chat::Game<'_>::push_chat_line"
 kind = "HEAD"
 cancellable = true
 helper = "src/mixins/signed_line.rs"
@@ -36,7 +36,7 @@ bindings = [
   { name = "content", ty = "&sunrise_client::text::Text", value = "&content" },
   { name = "source", ty = "sunrise_client::chat::ChatSource", value = "source" },
   { name = "signature", ty = "&Option<Signature>", value = "&signature" },
-  { name = "trust", ty = "&ChatTrust", value = "&trust" },
+  { name = "tag", ty = "&Option<sunrise_client::chat::Tag>", value = "&tag" },
 ]
 
 # A line joins the window's own chat, when there is no connection.
@@ -158,6 +158,7 @@ helper = "src/mixins/card_draw.rs"
 bindings = [
   { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
   { name = "batch", ty = "&mut sunrise_client::hud::HudBatch", value = "&mut *batch" },
+  { name = "allowed", ty = "bool", value = "allowed" },
 ]
 
 [[native.mixin]]
