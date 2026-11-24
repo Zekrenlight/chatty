@@ -1,6 +1,6 @@
 id = "chatty"
 name = "Chatty"
-version = "1.0.0"
+version = "1.0.1"
 description = "Player heads beside chat names, timestamps, repeated messages stacked with a count, chat history kept per server and world (with clear buttons and /chatty clear), and a symbol picker by the chat box. Every part has its own switch."
 authors = ["Zekrenlight"]
 license = "MIT"
