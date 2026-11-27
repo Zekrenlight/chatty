@@ -88,7 +88,7 @@ fn session_key(game: &Game<'_>) -> Option<String> {
 }
 
 fn history_dir(game: &Game<'_>) -> PathBuf {
-    game.native_data_dir(ch::ID).join("history")
+    game.instance_dir().join("sunrise-mod-data").join(ch::ID).join("history")
 }
 
 /// A server or world was joined or left: the old one's history is written, the new one's read
@@ -280,6 +280,7 @@ pub(super) fn level_unload(game: &Game<'_>) {
 /// Once a client tick: joining and leaving, the player list's names, the sent history, and
 /// the history written at most every few seconds.
 pub(super) fn tick(game: &mut Game<'_>) {
+    apply_pending_clear(game);
     if !game.on(ch::ID) {
         return;
     }
@@ -318,7 +319,7 @@ fn refresh_known(game: &Game<'_>) {
     }
     let mut known = HashSet::new();
     if let Some(remote) = game.remote.as_ref() {
-        for p in remote.listed_tab_players() {
+        for p in remote.listed_tab_player_refs() {
             known.insert(p.name.to_ascii_lowercase());
         }
     }
@@ -570,28 +571,47 @@ fn say(game: &mut Game<'_>, key: &str) {
 
 /// A setting changed on Chatty's page: the clear buttons. The first click asks, the second
 /// clears; the kept value goes back to the start each time, so the page opens fresh.
-pub(super) fn setting_changed(game: &mut Game<'_>, mod_id: &str, key: &str) {
+static PENDING_CLEAR: std::sync::Mutex<Option<(String, u32)>> = std::sync::Mutex::new(None);
+
+/// A setting changed on Chatty's page: the clear buttons. The hook only lends
+/// `&Game`, so the reset write and the clear itself run on the next tick.
+pub(super) fn setting_changed(game: &Game<'_>, mod_id: &str, key: &str) {
     if mod_id != ch::ID || !(key == ch::KEY_CLEAR_SERVER || key == ch::KEY_CLEAR_ALL) {
         return;
     }
-    let step = game
-        .setting(ch::ID, key)
-        .and_then(|v| v.trim().parse::<u32>().ok())
-        .unwrap_or(ch::CLEAR_IDLE);
-    if step == ch::CLEAR_ARMED {
-        game.set_setting(ch::ID, key, "0");
-    } else if step == ch::CLEAR_DONE {
+    let Some(k) = ch::setting_key(key) else {
+        return;
+    };
+    let step = match game.setting(k) {
+        Ok(mod_api::SettingValue::Choice(i)) => i as u32,
+        _ => ch::CLEAR_IDLE,
+    };
+    if step == ch::CLEAR_ARMED || step == ch::CLEAR_DONE {
+        *PENDING_CLEAR.lock().unwrap_or_else(|e| e.into_inner()) = Some((key.to_string(), step));
+    }
+}
+
+fn apply_pending_clear(game: &mut Game<'_>) {
+    let pending = PENDING_CLEAR.lock().unwrap_or_else(|e| e.into_inner()).take();
+    let Some((key, step)) = pending else {
+        return;
+    };
+    let Some(k) = ch::setting_key(&key) else {
+        return;
+    };
+    if step == ch::CLEAR_DONE {
         if key == ch::KEY_CLEAR_ALL {
             clear_all(game);
         } else {
             clear_this(game);
         }
-        game.set_setting(ch::ID, key, "0");
     }
+    let _ = game.set_setting(k, mod_api::SettingValue::Choice(0));
 }
 
 /// `/chatty`, `/chatty clear` and `/chatty clear all`.
 pub(super) fn command(game: &mut Game<'_>, command: &str, ran: &mut bool) {
+    let command = command.trim().trim_start_matches('/');
     let mut words = command.split_whitespace();
     if words.next() != Some(ch::ID) || !game.on(ch::ID) {
         return;

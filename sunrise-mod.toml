@@ -13,7 +13,7 @@ capabilities = ["registries"]
 # the player list and the chat screen, so the mod is pinned to this commit.
 [native]
 game = "26.3"
-sunrise = "3d34bbe63d71bb24c098c1e4021ef866be12fe2d"
+sunrise = "ba1f24e4ad41246b558230aa665539dc768b1287"
 mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
 
 # Everything that needs the game's types: composing lines, the history files, clearing, the
@@ -88,25 +88,12 @@ target = "sunrise_client::game::native_hooks::base::Game<'_>::native_setting_cha
 kind = "HEAD"
 helper = "src/mixins/setting_changed.rs"
 bindings = [
-  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "game", ty = "&crate::game::Game<'_>", value = "&*self" },
   { name = "mod_id", ty = "&str", value = "mod_id" },
   { name = "key", ty = "&str", value = "key" },
 ]
 
 # `/chatty`, `/chatty clear`, `/chatty clear all`.
-[[native.mixin]]
-id = "command"
-target = "sunrise_client::game::native_hooks::base::Game<'_>::native_command"
-kind = "HEAD"
-cancellable = true
-helper = "src/mixins/command.rs"
-bindings = [
-  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-  { name = "command", ty = "&str", value = "command" },
-  { name = "ran", ty = "&mut bool", value = "&mut *ran" },
-]
-
-# After the chat screen draws: the symbol button at the end of the chat box and its panel.
 [[native.mixin]]
 id = "draw_screen"
 target = "sunrise_client::game::chat::Game<'_>::draw_chat_screen"
@@ -148,6 +135,16 @@ id = "card"
 file = "crates/sunrise-client/src/game.rs"
 name = "chatty_card"
 source = "src/native/card.rs"
+
+[[native.mixin]]
+id = "command"
+target = "sunrise_client::game::native_server::Game<'_>::run_client_native_command"
+kind = "HEAD"
+helper = "src/mixins/command.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+  { name = "line", ty = "&str", value = "line" },
+]
 
 [[native.mixin]]
 id = "card_draw"
